@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Renk Kart</title>
+<meta name="description" content="Taşları oluklarda kaydır, kartın desenini ilk sen kur.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage" aria-hidden="true"></div>
+
+<!-- ============ OYUN ÜST ÇUBUĞU ============ -->
+<header id="hud" class="hud" hidden>
+  <button class="icon-btn" data-act="quit" aria-label="Menüye dön">
+    <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <div class="hud-mid">
+    <div class="hud-title" id="hudTitle">Tek Başına</div>
+    <div class="hud-score" id="hudScore" hidden>
+      <span class="sc-me"><i class="dot"></i><b id="scMeName">Sen</b><em id="scMe">0</em></span>
+      <span class="sc-sep">:</span>
+      <span class="sc-opp"><em id="scOpp">0</em><b id="scOppName">Bot</b><i class="dot"></i></span>
+    </div>
+  </div>
+  <div class="hud-stats">
+    <div class="stat"><span id="timeLabel">Süre</span><b id="hudTime">0:00</b></div>
+    <div class="stat"><span>Hamle</span><b id="hudMoves">0</b></div>
+  </div>
+</header>
+
+<div id="oppBar" class="opp-bar" hidden>
+  <span class="opp-name" id="oppName">Usta</span>
+  <div class="opp-cells" id="oppCells"></div>
+  <span class="opp-state" id="oppState">düşünüyor</span>
+</div>
+<div id="bubble" class="bubble" hidden></div>
+
+<button id="miniCard" class="mini-card" hidden aria-label="Kartı büyüt"><canvas></canvas></button>
+
+<nav id="tools" class="tools" hidden>
+  <button class="tool" data-act="undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg><span>Geri al</span></button>
+  <button class="tool" data-act="hint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/></svg><span>İpucu</span><i class="badge" id="hintBadge">3</i></button>
+  <button class="tool" data-act="restart"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8"/><path d="M3 3v5h5"/></svg><span>Baştan</span></button>
+  <button class="tool" data-act="view"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Görünüm</span></button>
+</nav>
+<div id="reactions" class="reactions" hidden>
+  <button data-react="Hadi!">Hadi!</button>
+  <button data-react="Vay be">Vay be</button>
+  <button data-react="Az kaldı">Az kaldı</button>
+  <button data-react="İyi oyun">İyi oyun</button>
+</div>
+
+<!-- ============ ANA MENÜ ============ -->
+<section class="screen" id="scr-menu">
+  <div class="logo" aria-label="Renk Kart">
+    <div class="logo-pegs"><i></i><i></i><i></i><i></i></div>
+    <h1><span>renk</span><span>kart</span></h1>
+    <p class="tag">Taşları kaydır, kartı ilk sen kur.</p>
+  </div>
+  <div class="menu-grid">
+    <button class="tile t0" data-go="solo"><span class="peg"></span><b>Tek Başına</b><small>Kartı çöz, yıldız topla</small></button>
+    <button class="tile t1" data-go="bot"><span class="peg"></span><b>Bota Karşı</b><small>Çırak, Usta ya da Efsane</small></button>
+    <button class="tile t2" data-go="online"><span class="peg"></span><b>Online</b><small>Oda kur, kodu paylaş</small></button>
+    <button class="tile t3" data-go="cards"><span class="peg"></span><b>Kartlar</b><small id="menuCardsSub">2.997 kart</small></button>
+  </div>
+  <button class="daily" data-act="daily">
+    <canvas id="dailyCanvas" width="120" height="150"></canvas>
+    <span><small>Günün kartı</small><b id="dailyNo">NO.1</b><em id="dailyState">Henüz çözülmedi</em></span>
+    <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+  <div class="menu-foot">
+    <button class="link" data-go="settings">Ayarlar</button>
+    <button class="link" data-act="howto">Nasıl oynanır?</button>
+    <button class="link" data-go="stats">İstatistik</button>
+  </div>
+</section>
+
+<!-- ============ TEK BAŞINA ============ -->
+<section class="screen" id="scr-solo" hidden>
+  <div class="scr-head"><button class="icon-btn" data-go="menu" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Tek Başına</h2></div>
+  <p class="label">Zorluk</p>
+  <div class="seg size-seg" data-bind="size"></div>
+  <div class="list">
+    <button class="row" data-act="solo-next"><span class="pip c0"></span><span><b>Sıradaki kart</b><small id="soloNextSub">NO.1</small></span></button>
+    <button class="row" data-act="solo-random"><span class="pip c1"></span><span><b>Rastgele kart</b><small>Kartlardan biri, sürpriz</small></span></button>
+    <button class="row" data-act="timed"><span class="pip c2"></span><span><b>Zamana karşı</b><small id="timedSub">3 dakikada kaç kart?</small></span></button>
+    <button class="row" data-go="cards"><span class="pip c3"></span><span><b>Koleksiyondan seç</b><small>Numarasıyla bir kart aç</small></span></button>
+  </div>
+</section>
+
+<!-- ============ BOTA KARŞI ============ -->
+<section class="screen" id="scr-bot" hidden>
+  <div class="scr-head"><button class="icon-btn" data-go="menu" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Bota Karşı</h2></div>
+  <p class="label">Rakip</p>
+  <div class="bots" id="botList"></div>
+  <p class="label">Zorluk</p>
+  <div class="seg size-seg" data-bind="size"></div>
+  <p class="label">Tur</p>
+  <div class="seg" data-bind="rounds"></div>
+  <button class="btn big primary" data-act="bot-start">Maça başla</button>
+</section>
+
+<!-- ============ ONLINE ============ -->
+<section class="screen" id="scr-online" hidden>
+  <div class="scr-head"><button class="icon-btn" data-act="online-back" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Online</h2></div>
+  <div id="onlineSetup">
+    <p class="label">Adın</p>
+    <input class="field" id="nameInput" maxlength="14" placeholder="Oyuncu" autocomplete="off">
+    <div class="split">
+      <div class="box">
+        <h3>Oda kur</h3>
+        <p class="muted">Kodu arkadaşına gönder.</p>
+        <p class="label">Zorluk</p>
+        <div class="seg size-seg small" data-bind="size"></div>
+        <p class="label">Tur</p>
+        <div class="seg small" data-bind="rounds"></div>
+        <button class="btn primary" data-act="host">Oda kur</button>
+      </div>
+      <div class="box">
+        <h3>Odaya katıl</h3>
+        <p class="muted">Arkadaşının verdiği kodu yaz.</p>
+        <input class="field code" id="codeInput" maxlength="5" placeholder="ABCDE" autocomplete="off" autocapitalize="characters">
+        <button class="btn" data-act="join">Katıl</button>
+      </div>
+    </div>
+  </div>
+  <div id="onlineLobby" hidden>
+    <div class="room">
+      <small>Oda kodu</small>
+      <div class="room-code" id="roomCode">-----</div>
+      <button class="btn small" data-act="copy-link">Davet bağlantısını kopyala</button>
+    </div>
+    <div class="players">
+      <div class="player"><i class="dot me"></i><b id="lobbyMe">Sen</b><small id="lobbyMeRole">ev sahibi</small></div>
+      <div class="player" id="lobbyOppRow"><i class="dot opp"></i><b id="lobbyOpp">Bekleniyor…</b><small id="lobbyOppRole"></small></div>
+    </div>
+    <p class="status" id="onlineStatus">Bağlanıyor…</p>
+    <button class="btn big primary" data-act="online-start" id="onlineStartBtn" hidden>Maçı başlat</button>
+  </div>
+</section>
+
+<!-- ============ KARTLAR ============ -->
+<section class="screen wide" id="scr-cards" hidden>
+  <div class="scr-head"><button class="icon-btn" data-go="back" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Kartlar</h2><span class="head-note" id="cardsProgress">0 / 999</span></div>
+  <div class="seg size-seg" data-bind="size"></div>
+  <div class="card-tools">
+    <div class="pager">
+      <button class="icon-btn" data-act="page-prev" aria-label="Önceki"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <span id="pageLabel">1 / 42</span>
+      <button class="icon-btn" data-act="page-next" aria-label="Sonraki"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <form class="jump" id="jumpForm"><input class="field" id="jumpInput" inputmode="numeric" placeholder="No" maxlength="3"><button class="btn small">Aç</button></form>
+  </div>
+  <div class="card-grid" id="cardGrid"></div>
+</section>
+
+<!-- ============ AYARLAR ============ -->
+<section class="screen" id="scr-settings" hidden>
+  <div class="scr-head"><button class="icon-btn" data-go="menu" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>Ayarlar</h2></div>
+  <p class="label">Tema</p>
+  <div class="themes" id="themeList"></div>
+  <p class="label">Oyun</p>
+  <div class="list">
+    <label class="toggle"><span><b>Ses</b><small>Ahşap tıkırtıları</small></span><input type="checkbox" id="optSound"><i></i></label>
+    <label class="toggle"><span><b>Renk körü sembolleri</b><small>Taşlarda şekil göster</small></span><input type="checkbox" id="optSymbols"><i></i></label>
+    <label class="toggle"><span><b>Üstten görünüm</b><small>Tahtaya yukarıdan bak</small></span><input type="checkbox" id="optTop"><i></i></label>
+    <label class="toggle"><span><b>Hızlı animasyon</b><small>Taşlar daha çabuk kayar</small></span><input type="checkbox" id="optFast"><i></i></label>
+  </div>
+  <button class="btn ghost" data-act="reset-progress">İlerlemeyi sıfırla</button>
+</section>
+
+<!-- ============ İSTATİSTİK ============ -->
+<section class="screen" id="scr-stats" hidden>
+  <div class="scr-head"><button class="icon-btn" data-go="menu" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h2>İstatistik</h2></div>
+  <div class="stat-grid" id="statGrid"></div>
+</section>
+
+<!-- ============ PENCERE / GERİ SAYIM / BİLDİRİM ============ -->
+<div class="modal-wrap" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+<div class="countdown" id="countdown" hidden><span></span></div>
+<div class="toast" id="toast" hidden></div>
+<div class="loading" id="loading" hidden><span></span><span></span><span></span></div>
+<div class="fatal" id="fatal" hidden>
+  <div><h2>3D yüklenemedi</h2><p>Oyun internet bağlantısıyla Three.js kütüphanesini yükler. Bağlantını kontrol edip sayfayı yenile.</p></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/core.js"></script>
+<script src="js/theme.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/net.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
