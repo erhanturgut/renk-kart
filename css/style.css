@@ -290,7 +290,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .reactions button:active { transform: translateY(2px); box-shadow: none; }
 
 .cam-bar {
-  position: fixed; z-index: 5; right: 16px; top: 50%; transform: translateY(-50%);
+  position: fixed; z-index: 5; left: 16px; bottom: calc(22px + var(--safe-b));
   display: flex; flex-direction: column; gap: 6px; padding: 6px; background: var(--paper);
   border: 2.5px solid var(--line); border-radius: 18px; box-shadow: 0 4px 0 var(--line);
 }
@@ -382,10 +382,10 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   .opp-bar { top: calc(108px + var(--safe-t)); left: 10px; padding: 5px 8px; gap: 6px; }
   .opp-state { min-width: 0; }
   .opp-cells i { width: 7px; height: 7px; }
-  .reactions { bottom: calc(84px + var(--safe-b)); }
-  .reactions button { font-size: 12px; padding: 5px 8px; }
+  .reactions { bottom: calc(130px + var(--safe-b)); }
+  .reactions button { font-size: 12px; padding: 5px 8px; white-space: nowrap; }
   .countdown span { font-size: 100px; }
-  .cam-bar { right: 8px; top: auto; bottom: calc(132px + var(--safe-b)); transform: none; gap: 4px; padding: 4px; border-radius: 14px; }
+  .cam-bar { left: 50%; transform: translateX(-50%); bottom: calc(80px + var(--safe-b)); flex-direction: row; gap: 4px; padding: 4px; border-radius: 14px; }
   .cam-bar button { width: 36px; height: 36px; border-radius: 10px; }
   .cam-bar svg { width: 18px; height: 18px; }
   .cam-bar [data-cam="zin"], .cam-bar [data-cam="zout"] { display: none; }
