@@ -45,8 +45,16 @@
   <button class="tool" data-act="undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg><span>Geri al</span></button>
   <button class="tool" data-act="hint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 00-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0012 3z"/></svg><span>İpucu</span><i class="badge" id="hintBadge">3</i></button>
   <button class="tool" data-act="restart"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 109-9 9.7 9.7 0 00-6.7 2.8L3 8"/><path d="M3 3v5h5"/></svg><span>Baştan</span></button>
-  <button class="tool" data-act="view"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><span>Görünüm</span></button>
 </nav>
+<div id="camBar" class="cam-bar" hidden>
+  <button data-cam="left" title="Tablayı sola döndür" aria-label="Sola döndür"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 108-8 8.6 8.6 0 00-6 2.5L4 8"/><path d="M4 3v5h5"/></svg></button>
+  <button data-cam="right" title="Tablayı sağa döndür" aria-label="Sağa döndür"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 11-8-8 8.6 8.6 0 016 2.5L20 8"/><path d="M20 3v5h-5"/></svg></button>
+  <button data-cam="top" title="Üstten görünüm" aria-label="Üstten görünüm" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.6"/><circle cx="15" cy="9" r="1.6"/><circle cx="9" cy="15" r="1.6"/><circle cx="15" cy="15" r="1.6"/></svg><span>Üst</span></button>
+  <button data-cam="zin" title="Yakınlaştır" aria-label="Yakınlaştır"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button data-cam="zout" title="Uzaklaştır" aria-label="Uzaklaştır"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+  <button data-cam="reset" title="Görünümü sıfırla" aria-label="Görünümü sıfırla"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+  <button data-cam="lock" title="Görünümü sabitle" aria-label="Görünümü sabitle" aria-pressed="false"><svg viewBox="0 0 24 24" class="ic-open"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 017.7-1.5"/></svg><svg viewBox="0 0 24 24" class="ic-shut"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></button>
+</div>
 <div id="reactions" class="reactions" hidden>
   <button data-react="Hadi!">Hadi!</button>
   <button data-react="Vay be">Vay be</button>
@@ -168,6 +176,7 @@
     <label class="toggle"><span><b>Ses</b><small>Ahşap tıkırtıları</small></span><input type="checkbox" id="optSound"><i></i></label>
     <label class="toggle"><span><b>Renk körü sembolleri</b><small>Taşlarda şekil göster</small></span><input type="checkbox" id="optSymbols"><i></i></label>
     <label class="toggle"><span><b>Üstten görünüm</b><small>Tahtaya yukarıdan bak</small></span><input type="checkbox" id="optTop"><i></i></label>
+    <label class="toggle"><span><b>Görünümü sabitle</b><small>Sürükleyince tabla dönmesin</small></span><input type="checkbox" id="optLock"><i></i></label>
     <label class="toggle"><span><b>Hızlı animasyon</b><small>Taşlar daha çabuk kayar</small></span><input type="checkbox" id="optFast"><i></i></label>
   </div>
   <button class="btn ghost" data-act="reset-progress">İlerlemeyi sıfırla</button>

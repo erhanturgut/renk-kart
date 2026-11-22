@@ -10,7 +10,7 @@
     get(k, d) { try { const v = localStorage.getItem('rk.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('rk.' + k, JSON.stringify(v)); } catch (e) { /* özel pencere */ } },
   };
-  const settings = Object.assign({ theme: 'ahsap', sound: true, symbols: false, top: false, fast: false, name: '', size: 4, rounds: 3, bot: 1 }, store.get('settings', {}));
+  const settings = Object.assign({ theme: 'ahsap', sound: true, symbols: false, top: false, fast: false, locked: false, cam: null, name: '', size: 4, rounds: 3, bot: 1 }, store.get('settings', {}));
   const progress = Object.assign({ solved: {}, timedBest: {} }, store.get('progress', {}));
   const stats = Object.assign({ bot: { 0: [0, 0], 1: [0, 0], 2: [0, 0] }, online: [0, 0], played: 0, moves: 0, hints: 0, seconds: 0 }, store.get('stats', {}));
   const saveSettings = () => store.set('settings', settings);
@@ -162,6 +162,7 @@
     $('#optSound').checked = settings.sound;
     $('#optSymbols').checked = settings.symbols;
     $('#optTop').checked = settings.top;
+    $('#optLock').checked = settings.locked;
     $('#optFast').checked = settings.fast;
   }
   function renderStats() {
@@ -211,6 +212,8 @@
     $('#hud').hidden = false;
     $('#tools').hidden = false;
     $('#miniCard').hidden = false;
+    $('#camBar').hidden = false;
+    syncCamBar();
     $('#hudTitle').textContent = opts.title;
     $('#hudScore').hidden = !opts.score;
     $('#oppBar').hidden = !opts.opp;
@@ -220,7 +223,7 @@
     $('#timeLabel').textContent = G.mode === 'timed' ? 'Kalan' : 'Süre';
   }
   function hideHud() {
-    ['#hud', '#tools', '#miniCard', '#oppBar', '#reactions', '#bubble'].forEach((s) => ($(s).hidden = true));
+    ['#hud', '#tools', '#miniCard', '#oppBar', '#reactions', '#bubble', '#camBar'].forEach((s) => ($(s).hidden = true));
     $('#miniCard').classList.remove('big');
   }
   function drawMiniCard() { drawCardTo($('#miniCard canvas'), G.card, { w: 110 }); }
@@ -235,6 +238,7 @@
     drawMiniCard();
     updateStats();
     $('#hintBadge').textContent = G.hints;
+    camTip();
   }
 
   /* --- tek başına --- */
@@ -797,6 +801,40 @@
     } else toMenu(G.mode === 'solo' && prevScreen === 'cards' ? 'cards' : undefined);
   }
 
+  /* ---------- kamera ---------- */
+  function syncCamBar() {
+    $('[data-cam="top"]').setAttribute('aria-pressed', String(settings.top));
+    $('[data-cam="lock"]').setAttribute('aria-pressed', String(settings.locked));
+    $('[data-cam="lock"]').title = settings.locked ? 'Görünüm sabit, açmak için dokun' : 'Görünümü sabitle';
+    $$('#camBar [data-cam]').forEach((b) => { if (b.dataset.cam !== 'lock') b.disabled = settings.locked; });
+    const ol = $('#optLock'); if (ol) ol.checked = settings.locked;
+    const ot = $('#optTop'); if (ot) ot.checked = settings.top;
+  }
+  function setTop(v) { settings.top = v; saveSettings(); S.setView(v ? 'top' : 'tilt'); syncCamBar(); }
+  function setLocked(v) {
+    settings.locked = v; saveSettings(); S.setLocked(v); syncCamBar();
+    toast(v ? 'Görünüm sabitlendi' : 'Görünüm serbest: boş alanı sürükleyerek döndür');
+  }
+  function camAction(a) {
+    A.play('pick');
+    if (a === 'lock') return setLocked(!settings.locked);
+    if (settings.locked) return;
+    if (a === 'left') S.rotateBy(-Math.PI / 2);
+    else if (a === 'right') S.rotateBy(Math.PI / 2);
+    else if (a === 'top') setTop(!settings.top);
+    else if (a === 'zin') S.zoomBy(1 / 1.18);
+    else if (a === 'zout') S.zoomBy(1.18);
+    else if (a === 'reset') { S.resetCam(); if (settings.top) setTop(false); }
+  }
+  function camTip() {
+    if (store.get('seenCamTip', false)) return;
+    store.set('seenCamTip', true);
+    const touch = matchMedia('(pointer: coarse)').matches;
+    setTimeout(() => toast(touch
+      ? 'Boş alanı sürükle: tablayı döndür · iki parmak: kaydır ve yakınlaştır'
+      : 'Boş alanı sürükle: döndür · sağ tık ya da Shift ile sürükle: kaydır · tekerlek: yakınlaştır', 5200), 1200);
+  }
+
   /* ---------- olaylar ---------- */
   function bind() {
     document.addEventListener('click', (e) => {
@@ -809,6 +847,7 @@
       if (t.dataset.bot) { settings.bot = +t.dataset.bot; saveSettings(); renderBot(); A.play('pick'); return; }
       if (t.dataset.theme) { settings.theme = t.dataset.theme; saveSettings(); applyTheme(); renderSettings(); A.play('pick'); return; }
       if (t.dataset.card) { prevScreen = 'cards'; return startSolo(settings.size, +t.dataset.card); }
+      if (t.dataset.cam) { camAction(t.dataset.cam); return; }
       if (t.dataset.react) { NET.send({ t: 'react', text: t.dataset.react }); showBubble('Sen: ' + t.dataset.react); return; }
       const act = t.dataset.act;
       if (!act) return;
@@ -835,7 +874,6 @@
         case 'undo': undo(); break;
         case 'hint': hint(); break;
         case 'restart': restart(); break;
-        case 'view': settings.top = !settings.top; saveSettings(); S.setView(settings.top ? 'top' : 'tilt'); break;
         case 'howto': howto(); break;
         case 'reset-progress':
           openModal('<h2>Emin misin?</h2><p>Çözülen kartlar, rekorlar ve istatistikler silinecek.</p>', [
@@ -859,12 +897,18 @@
     $('#codeInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
     $('#optSound').addEventListener('change', (e) => { settings.sound = e.target.checked; A.setEnabled(settings.sound); saveSettings(); A.play('pick'); });
     $('#optSymbols').addEventListener('change', (e) => { settings.symbols = e.target.checked; S.setSymbols(settings.symbols); saveSettings(); S.rebuild(); refreshCardImages(); });
-    $('#optTop').addEventListener('change', (e) => { settings.top = e.target.checked; saveSettings(); S.setView(settings.top ? 'top' : 'tilt'); });
+    $('#optTop').addEventListener('change', (e) => setTop(e.target.checked));
+    $('#optLock').addEventListener('change', (e) => setLocked(e.target.checked));
     $('#optFast').addEventListener('change', (e) => { settings.fast = e.target.checked; S.setSpeed(settings.fast ? 1.8 : 1); saveSettings(); });
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT') return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
       else if (e.key === 'h' || e.key === 'H') hint();
+      else if (G.mode && (e.key === 'q' || e.key === 'Q')) camAction('left');
+      else if (G.mode && (e.key === 'e' || e.key === 'E')) camAction('right');
+      else if (G.mode && (e.key === 't' || e.key === 'T')) camAction('top');
+      else if (G.mode && (e.key === 'l' || e.key === 'L')) camAction('lock');
+      else if (G.mode && (e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey) camAction('reset');
       else if (e.key === 'Escape') { if (!$('#modal').hidden) return; if (G.mode) deselect(); }
     });
   }
@@ -880,6 +924,9 @@
     S.setSymbols(settings.symbols);
     S.setSpeed(settings.fast ? 1.8 : 1);
     S.setView(settings.top ? 'top' : 'tilt');
+    S.setLocked(settings.locked);
+    if (settings.cam) S.setCam(settings.cam, true);
+    S.onCamChange((c) => { settings.cam = c; saveSettings(); });
     S.onCell(onCell);
     applyTheme();
     startDemo();

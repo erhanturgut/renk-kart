@@ -325,10 +325,34 @@
     S.setup(cfg);
   };
 
-  /* ---------- kamera ---------- */
+  /* ---------- kamera ----------
+     Temel kadraj moda göre otomatik hesaplanır; oyuncu bunun üstüne
+     döndürme (az), eğim (tilt), yakınlaştırma (zoom) ve kaydırma (pan) ekler. */
   let inset = { l: 0, b: 0 };
+  const user = { az: 0, tilt: 0, zoom: 1, pan: new T.Vector3() };
+  const userCur = { az: 0, tilt: 0, zoom: 1, pan: new T.Vector3() };
+  let locked = false;
+  let camChange = null;
+  const ELEV_MIN = T.MathUtils.degToRad(16), ELEV_MAX = T.MathUtils.degToRad(88);
   S.setInset = function (l, b) { inset = { l, b }; resize(); };
-  S.setView = (v) => { view = v; computeCamera(false); };
+  S.setView = (v) => { view = v; user.tilt = 0; computeCamera(false); };
+  S.getView = () => view;
+  S.onCamChange = (fn) => { camChange = fn; };
+  const fireCam = () => { if (camChange) camChange(S.getCam()); };
+  S.getCam = () => ({ az: user.az, tilt: user.tilt, zoom: user.zoom, px: user.pan.x, pz: user.pan.z });
+  S.setCam = function (c, instant) {
+    if (!c) return;
+    user.az = +c.az || 0; user.tilt = +c.tilt || 0; user.zoom = +c.zoom || 1;
+    user.pan.set(+c.px || 0, 0, +c.pz || 0);
+    if (instant) { userCur.az = user.az; userCur.tilt = user.tilt; userCur.zoom = user.zoom; userCur.pan.copy(user.pan); }
+    computeCamera(false);
+  };
+  S.rotateBy = function (rad) { if (locked) return; user.az += rad; computeCamera(false); fireCam(); };
+  S.zoomBy = function (f) { if (locked) return; user.zoom = T.MathUtils.clamp(user.zoom * f, 0.45, 2.2); fireCam(); };
+  S.resetCam = function () { user.az = 0; user.tilt = 0; user.zoom = 1; user.pan.set(0, 0, 0); computeCamera(false); fireCam(); };
+  S.setLocked = (v) => { locked = !!v; };
+  S.isLocked = () => locked;
+
   function computeCamera(instant) {
     if (!boards.me) return;
     const me = boards.me;
@@ -337,51 +361,73 @@
     const vfull = T.MathUtils.degToRad(camera.fov);
     const vf = 2 * Math.atan(Math.tan(vfull / 2) * Math.max(0.2, (ch - inset.b * 0.84) / ch));
     const hf = 2 * Math.atan(Math.tan(vf / 2) * aspect);
+    const top = view === 'top' && mode !== 'menu';
     let target, halfW, halfD, elev;
     if (mode === 'vs') {
       const span = me.group.position.z + me.d / 2 + 0.3; // kartın ortasından oyuncunun kenarına
       target = new T.Vector3(0, 0.5, me.group.position.z * (aspect < 0.8 ? 0.62 : 0.4));
       halfW = me.w / 2 + 0.3;
       halfD = span * (aspect < 0.8 ? 0.62 : 0.78);
-      elev = view === 'top' ? 78 : 50;
+      elev = top ? 88 : 50;
     } else if (mode === 'menu') {
       target = new T.Vector3(0, 0.3, 0);
       halfW = me.w / 2 + 1.2; halfD = me.d / 2 + 1.2;
       elev = 42;
     } else {
       const cz = cardObj ? cardObj.position.z : 0;
-      target = new T.Vector3(0, 0.6, (cz + me.d / 2) / 2 + (view === 'top' ? 0.2 : 0.35));
+      target = new T.Vector3(0, 0.6, (cz + me.d / 2) / 2 + (top ? 0.1 : 0.35));
       halfW = me.w / 2 + 0.25; halfD = (me.d / 2 - cz) / 2 + 0.5;
-      elev = view === 'top' ? 76 : 52;
+      elev = top ? 88 : 52;
     }
-    // ekrana sığdır
+    // döndürülmüş tablayı da sığdır; yan/ters bakarken kendi tablan ortada kalsın
+    if (mode !== 'menu') {
+      const center = new T.Vector3(0, target.y, me.group.position.z);
+      const f = Math.max(0, Math.cos(user.az));
+      target = center.clone().lerp(target, f);
+      if (mode === 'vs' && f < 0.99) { halfW = me.w / 2 + 0.4; halfD = halfD * f + (me.d / 2 + 0.4) * (1 - f); }
+      const c = Math.abs(Math.cos(user.az)), sn = Math.abs(Math.sin(user.az));
+      const w2 = c * halfW + sn * halfD, d2 = sn * halfW + c * halfD;
+      halfW = w2; halfD = d2;
+    }
     const portrait = aspect < 0.8;
-    if (portrait && mode !== 'menu') elev += view === 'top' ? 4 : 10;
+    if (portrait && mode !== 'menu' && !top) elev += 10;
     const e = T.MathUtils.degToRad(elev);
-    const projD = halfD * Math.sin(e) + 1.4 * Math.cos(e); // derinlik izdüşümü (+ kart yüksekliği)
+    const projD = halfD * Math.sin(e) + (top ? 0.3 : 1.4) * Math.cos(e); // derinlik izdüşümü (+ kart yüksekliği)
     const distV = projD / Math.tan(vf / 2) + halfD * Math.cos(e);
     const distH = halfW / Math.tan(hf / 2) + halfD * Math.cos(e) * (portrait ? 0.35 : 0.6);
     let dist = Math.max(distV, distH) * (portrait ? 1.04 : 1.08);
     if (mode !== 'menu' && !portrait) dist *= 1.06; // arayüz çubukları için pay
+    if (top) dist *= 1.04;
     camGoal = { target, dist, elev: e };
     if (instant || !camCur) camCur = { target: target.clone(), dist, elev: e };
   }
   function applyCamera(dt) {
     if (!camGoal) return;
     const k = 1 - Math.pow(0.002, dt);
+    const ku = 1 - Math.pow(0.00002, dt); // oyuncu hareketleri daha çabuk takip edilir
     camCur.target.lerp(camGoal.target, k);
     camCur.dist += (camGoal.dist - camCur.dist) * k;
     camCur.elev += (camGoal.elev - camCur.elev) * k;
+    const game = mode !== 'menu';
+    // eğim sınırları
+    user.tilt = T.MathUtils.clamp(user.tilt, ELEV_MIN - camGoal.elev, ELEV_MAX - camGoal.elev);
+    userCur.az += (user.az - userCur.az) * ku;
+    userCur.tilt += (user.tilt - userCur.tilt) * ku;
+    userCur.zoom += (user.zoom - userCur.zoom) * ku;
+    userCur.pan.lerp(user.pan, ku);
     let az = 0;
-    if (mode === 'menu') { orbit += dt * 0.12; az = Math.sin(orbit) * 0.55; }
-    else az = Math.sin(performance.now() / 4000) * 0.015;
-    const d = camCur.dist;
-    const x = Math.sin(az) * Math.cos(camCur.elev) * d;
-    const z = Math.cos(az) * Math.cos(camCur.elev) * d;
-    const y = Math.sin(camCur.elev) * d;
-    camera.position.set(camCur.target.x + x, camCur.target.y + y, camCur.target.z + z);
+    if (!game) { orbit += dt * 0.12; az = Math.sin(orbit) * 0.55; }
+    else az = userCur.az + (locked || view === 'top' ? 0 : Math.sin(performance.now() / 4000) * 0.015);
+    const elev = T.MathUtils.clamp(camCur.elev + (game ? userCur.tilt : 0), ELEV_MIN, ELEV_MAX);
+    const d = camCur.dist * (game ? userCur.zoom : 1);
+    const tgt = camCur.target.clone();
+    if (game) tgt.add(userCur.pan);
+    const x = Math.sin(az) * Math.cos(elev) * d;
+    const z = Math.cos(az) * Math.cos(elev) * d;
+    const y = Math.sin(elev) * d;
+    camera.position.set(tgt.x + x, tgt.y + y, tgt.z + z);
     if (shake > 0) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; shake *= 0.86; if (shake < 0.002) shake = 0; }
-    camera.lookAt(camCur.target);
+    camera.lookAt(tgt);
   }
 
   /* ---------- etkileşim ---------- */
@@ -398,32 +444,95 @@
     if (o.userData.cell !== undefined) return o.userData.cell;
     return o.parent.userData.cell;
   }
+  function panBy(dx, dy) {
+    const a = userCur.az;
+    // ekranda parmak ne kadar giderse tabla da o kadar gitsin
+    const s = (2 * camCur.dist * userCur.zoom * Math.tan(T.MathUtils.degToRad(camera.fov) / 2)) / (container.clientHeight || 800);
+    const right = new T.Vector3(Math.cos(a), 0, -Math.sin(a));
+    const fwd = new T.Vector3(-Math.sin(a), 0, -Math.cos(a));
+    user.pan.addScaledVector(right, -dx * s).addScaledVector(fwd, dy * s);
+    user.pan.clampLength(0, 7);
+  }
   function bindPointer() {
     const el = renderer.domElement;
-    let down = null;
-    el.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, cell: pick(e) }; });
-    el.addEventListener('pointerup', (e) => {
-      if (!down) return;
-      const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
-      const cell = pick(e);
-      if (cellHandler) {
-        if (moved > 18 && down.cell >= 0 && cell >= 0 && cell !== down.cell) cellHandler(down.cell, 'dragstart'), cellHandler(cell, 'drop');
-        else if (cell >= 0) cellHandler(cell, 'tap');
-        else cellHandler(-1, 'tap');
+    const pts = new Map();
+    let g = null; // { kind: 'cell'|'orbit'|'pan'|'pinch', ... }
+    const camOK = () => mode !== 'menu' && !locked;
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    el.addEventListener('pointerdown', (e) => {
+      try { el.setPointerCapture(e.pointerId); } catch (err) { /* */ }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [p1, p2] = [...pts.values()];
+        g = { kind: 'pinch', d0: Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1, z0: user.zoom, mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
+        return;
       }
-      down = null;
+      if (pts.size > 2) return;
+      const cell = pick(e);
+      let kind = 'orbit';
+      if (e.button === 2 || e.button === 1 || (e.button === 0 && e.shiftKey)) kind = 'pan';
+      else if (cell >= 0) kind = 'cell';
+      g = { kind, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cell, moved: 0 };
     });
     el.addEventListener('pointermove', (e) => {
-      if (e.pointerType !== 'mouse') return;
+      const p = pts.get(e.pointerId);
+      if (p) { p.x = e.clientX; p.y = e.clientY; }
+      if (g && g.kind === 'pinch' && pts.size === 2) {
+        const [p1, p2] = [...pts.values()];
+        const d = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1;
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        if (camOK()) {
+          user.zoom = T.MathUtils.clamp(g.z0 * (g.d0 / d), 0.45, 2.2);
+          panBy(mx - g.mx, my - g.my);
+        }
+        g.mx = mx; g.my = my;
+        return;
+      }
+      if (g && p && (g.kind === 'orbit' || g.kind === 'pan')) {
+        const dx = e.clientX - g.x, dy = e.clientY - g.y;
+        g.x = e.clientX; g.y = e.clientY;
+        g.moved = Math.max(g.moved, Math.hypot(e.clientX - g.x0, e.clientY - g.y0));
+        if (camOK() && g.moved > 4) {
+          if (g.kind === 'orbit') { user.az -= dx * 0.008; user.tilt += dy * 0.005; }
+          else panBy(dx, dy);
+        }
+        return;
+      }
+      if (e.pointerType !== 'mouse' || e.buttons) return;
       const c = pick(e);
       if (c !== hoverCell) {
         hoverCell = c;
         const B = boards.me;
         if (!B) return;
-        if (c >= 0) { const p = cellLocal(B.model, c); B.hover.position.set(p.x, TOP + 0.01, p.z); B.hover.visible = true; el.style.cursor = 'pointer'; }
-        else { B.hover.visible = false; el.style.cursor = ''; }
+        if (c >= 0) { const q = cellLocal(B.model, c); B.hover.position.set(q.x, TOP + 0.01, q.z); B.hover.visible = true; el.style.cursor = 'pointer'; }
+        else { B.hover.visible = false; el.style.cursor = locked ? '' : 'grab'; }
       }
     });
+    const end = (e) => {
+      const had = pts.delete(e.pointerId);
+      if (!had || !g) return;
+      if (g.kind === 'pinch') { if (pts.size === 0) { g = null; fireCam(); } return; }
+      if (pts.size) return;
+      const moved = Math.hypot(e.clientX - g.x0, e.clientY - g.y0);
+      if (g.kind === 'cell' && cellHandler && e.type === 'pointerup') {
+        const cell = pick(e);
+        if (moved > 18 && cell >= 0 && cell !== g.cell) { cellHandler(g.cell, 'dragstart'); cellHandler(cell, 'drop'); }
+        else if (moved <= 18) cellHandler(g.cell, 'tap');
+      } else if (g.kind === 'orbit' && moved < 8 && cellHandler && e.type === 'pointerup') {
+        cellHandler(-1, 'tap');
+      } else if (moved >= 8) fireCam();
+      g = null;
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      if (!camOK()) return;
+      if (e.ctrlKey) user.zoom *= Math.exp(e.deltaY * 0.01); // dokunmatik yüzey çimdik
+      else user.zoom *= Math.exp(e.deltaY * 0.0012);
+      user.zoom = T.MathUtils.clamp(user.zoom, 0.45, 2.2);
+      clearTimeout(el._wt); el._wt = setTimeout(fireCam, 300);
+    }, { passive: false });
     el.addEventListener('pointerleave', () => { if (boards.me) boards.me.hover.visible = false; hoverCell = -1; });
   }
 

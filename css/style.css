@@ -289,6 +289,24 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .reactions button { padding: 6px 10px; border: 2px solid var(--line); border-radius: 12px; background: var(--paper); font-weight: 700; font-size: 13px; box-shadow: 0 2px 0 var(--line); }
 .reactions button:active { transform: translateY(2px); box-shadow: none; }
 
+.cam-bar {
+  position: fixed; z-index: 5; right: 16px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 6px; padding: 6px; background: var(--paper);
+  border: 2.5px solid var(--line); border-radius: 18px; box-shadow: 0 4px 0 var(--line);
+}
+.cam-bar button {
+  width: 42px; height: 42px; display: grid; place-items: center; padding: 0; position: relative;
+  background: var(--soft); border: 2px solid var(--line); border-radius: 12px;
+}
+.cam-bar button:active { transform: translateY(2px); }
+.cam-bar button span { position: absolute; bottom: 1px; font-size: 9px; font-weight: 800; letter-spacing: .04em; display: none; }
+.cam-bar button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.cam-bar button:disabled { opacity: .3; cursor: default; transform: none; }
+.cam-bar .ic-shut { display: none; }
+.cam-bar [data-cam="lock"][aria-pressed="true"] .ic-shut { display: block; }
+.cam-bar [data-cam="lock"][aria-pressed="true"] .ic-open { display: none; }
+.cam-bar [data-cam="lock"][aria-pressed="true"] { background: var(--accent); color: #fff; }
+
 /* ---------- pencere ---------- */
 .modal-wrap { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 20px; background: rgba(20, 14, 8, .35); animation: fade .2s; }
 @keyframes fade { from { opacity: 0; } }
@@ -367,6 +385,10 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
   .reactions { bottom: calc(84px + var(--safe-b)); }
   .reactions button { font-size: 12px; padding: 5px 8px; }
   .countdown span { font-size: 100px; }
+  .cam-bar { right: 8px; top: auto; bottom: calc(132px + var(--safe-b)); transform: none; gap: 4px; padding: 4px; border-radius: 14px; }
+  .cam-bar button { width: 36px; height: 36px; border-radius: 10px; }
+  .cam-bar svg { width: 18px; height: 18px; }
+  .cam-bar [data-cam="zin"], .cam-bar [data-cam="zout"] { display: none; }
   .themes { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
